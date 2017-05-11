@@ -107,7 +107,7 @@ def main():
         for child in children:
             try:
                 # only consider machines which have an annotation and are powered on
-                if child.summary.config.annotation and child.summary.runtime.powerState == "poweredOn" and pattern.match(child.summary.config.annotation):
+                if child.summary.runtime.powerState == "poweredOn" and pattern.match(child.summary.config.annotation):
                     print('INFO: current vm processed - ' +
                           child.summary.config.name)
 
