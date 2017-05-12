@@ -7,6 +7,7 @@ from prometheus_client import start_http_server, Gauge
 from pyVim.connect import SmartConnect, Disconnect
 import atexit
 import ssl
+import sys
 from yamlconfig import YamlConfig
 import argparse
 import re
@@ -21,15 +22,21 @@ defaults = {
     'ignore_ssl': True
 }
 
+logger = logging.getLogger()
+
 
 def main():
 
     # config file parsing
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-c", "--config", help="Specify config file", metavar="FILE")
+    parser.add_argument("-c", "--config", help="Specify config file", metavar="FILE")
     args, remaining_argv = parser.parse_known_args()
     config = YamlConfig(args.config, defaults)
+
+    logger.setLevel(logging.getLevelName(config.get('main').get('log').upper()))
+    FORMAT = '[%(asctime)s] [%(levelname)s] %(message)s'
+    logging.basicConfig(stream=sys.stdout, format=FORMAT)
+
 
     # check for insecure ssl option
     si = None
@@ -72,7 +79,7 @@ def main():
     # start up the http server to expose the prometheus metrics
     start_http_server(8000)
 
-    logging.info('list of all available metrics and their counterids')
+    logging.debug('list of all available metrics and their counterids')
     # loop over all counterids and build their full name and a dict relating it to the ids
     for c in counterids:
         fullName = c.groupInfo.key + "." + c.nameInfo.key + "." + c.rollupType
