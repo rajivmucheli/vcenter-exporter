@@ -10,6 +10,8 @@ import ssl
 from yamlconfig import YamlConfig
 import argparse
 import re
+import logging
+import time
 
 # vcenter connection defaults
 defaults = {
@@ -70,11 +72,11 @@ def main():
     # start up the http server to expose the prometheus metrics
     start_http_server(8000)
 
-    print('INFO: list of all available metrics and their counterids')
+    logging.info('list of all available metrics and their counterids')
     # loop over all counterids and build their full name and a dict relating it to the ids
     for c in counterids:
         fullName = c.groupInfo.key + "." + c.nameInfo.key + "." + c.rollupType
-        print('INFO: ' + fullName + ': ' + str(c.key))
+        logging.debug(': ' + fullName + ': ' + str(c.key))
         counterInfo[fullName] = c.key
 
         # define a dict of gauges for the counter ids
@@ -95,26 +97,25 @@ def main():
     # infinite loop for getting the metrics
     while True:
 
+        time.sleep(config.get('main').get('interval'))
         # create containerview to get a list of vmware machines
         containerView = content.viewManager.CreateContainerView(
             container, viewType, recursive)
 
         children = containerView.view
         count_vms = len(children)
-        print('INFO: number of vms - ' + str(count_vms))
+        logging.info('number of vms - ' + str(count_vms))
 
         # loop over all vmware machines
         for child in children:
             try:
                 # only consider machines which have an annotation and are powered on
                 if child.summary.runtime.powerState == "poweredOn" and pattern.match(child.summary.config.annotation):
-                    print('INFO: current vm processed - ' +
+                    logging.debug('current vm processed - ' +
                           child.summary.config.name)
 
                     # split the multi-line annotation into a dict per property (name, project-id, ...)
                     annotation_lines = child.summary.config.annotation.split('\n')
-
-
 
                     # the filter is for filtering out empty lines
 
