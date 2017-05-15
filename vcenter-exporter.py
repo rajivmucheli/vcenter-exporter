@@ -101,22 +101,23 @@ def main():
     else:
         counterIDs = [i.key for i in counterids]
 
-    hostView = content.viewManager.CreateContainerView(container,
-                                                        [vim.HostSystem],
-                                                        recursive)
 
-    hostssystems = hostView.view
-
-    hostsystemsdict = {}
-    for host in hostssystems:
-        hostname = host.name
-        hostsystemsdict[host] = hostname
-    logging.debug(hostsystemsdict)
 
     # infinite loop for getting the metrics
     while True:
 
-        time.sleep(config.get('main').get('interval'))
+        hostView = content.viewManager.CreateContainerView(container,
+                                                        [vim.HostSystem],
+                                                        recursive)
+
+        hostssystems = hostView.view
+
+        hostsystemsdict = {}
+        for host in hostssystems:
+            hostname = host.name
+            hostsystemsdict[host] = hostname
+        logging.debug(hostsystemsdict)
+
         # create containerview to get a list of vmware machines
         containerView = content.viewManager.CreateContainerView(
             container, viewType, recursive)
@@ -178,6 +179,9 @@ def main():
                 logging.info('a machine disappeared during processing')
             except IndexError:
                 logging.info('a machine disappeared during processing')
+
+            time.sleep(config.get('main').get('interval'))
+
 
 if __name__ == "__main__":
     main()
