@@ -90,7 +90,7 @@ def main():
         gauge['vcenter_' + fullName.replace('.', '_')] = Gauge(
             'vcenter_' + fullName.replace('.', '_'),
             'vcenter_' + fullName.replace('.', '_'),
-            ['vmware_name', 'project_id', 'vcenter_name'])
+            ['vmware_name', 'project_id', 'vcenter_name', 'cluster_node'])
 
     # in case we have a set of metric to handle use those, otherwise use all we can get
     selected_metrics = config.get('main').get('vm_metrics')
@@ -100,6 +100,18 @@ def main():
         ]
     else:
         counterIDs = [i.key for i in counterids]
+
+    hostView = content.viewManager.CreateContainerView(container,
+                                                        [vim.HostSystem],
+                                                        recursive)
+
+    hostssystems = hostView.view
+
+    hostsystemsdict = {}
+    for host in hostssystems:
+        hostname = host.name
+        hostsystemsdict[host] = hostname
+    logging.debug(hostsystemsdict)
 
     # infinite loop for getting the metrics
     while True:
@@ -118,8 +130,10 @@ def main():
             try:
                 # only consider machines which have an annotation and are powered on
                 if child.summary.runtime.powerState == "poweredOn" and pattern.match(child.summary.config.annotation):
-                    logging.debug('current vm processed - ' +
+                    logging.info('current vm processed - ' +
                           child.summary.config.name)
+
+                    logging.debug(hostsystemsdict[child.summary.runtime.host])
 
                     # split the multi-line annotation into a dict per property (name, project-id, ...)
                     annotation_lines = child.summary.config.annotation.split('\n')
@@ -155,8 +169,10 @@ def main():
                                           annotations['name'],
                                           annotations['projectid'],
                                           config['main']['host'].replace(
-                                              '.cloud.sap',
-                                              '')).set(val.value[0])
+                                              '.cloud.sap',''),
+                                          hostsystemsdict[child.summary.runtime.host].replace(
+                                              '.cloud.sap','')
+                            ).set(val.value[0])
 
             except vmodl.fault.ManagedObjectNotFound:
                 logging.info('a machine disappeared during processing')
