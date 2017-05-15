@@ -130,7 +130,7 @@ def main():
             try:
                 # only consider machines which have an annotation and are powered on
                 if child.summary.runtime.powerState == "poweredOn" and pattern.match(child.summary.config.annotation):
-                    logging.info('current vm processed - ' +
+                    logging.debug('current vm processed - ' +
                           child.summary.config.name)
 
                     logging.debug(hostsystemsdict[child.summary.runtime.host])
