@@ -159,8 +159,9 @@ def main():
                                               '')).set(val.value[0])
 
             except vmodl.fault.ManagedObjectNotFound:
-                print('INFO: a machine disappeared during processing')
-
+                logging.info('a machine disappeared during processing')
+            except IndexError:
+                logging.info('a machine disappeared during processing')
 
 if __name__ == "__main__":
     main()
