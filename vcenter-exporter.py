@@ -13,6 +13,7 @@ import argparse
 import re
 import logging
 import time
+import datetime
 
 # vcenter connection defaults
 defaults = {
@@ -98,7 +99,8 @@ def main():
         gauge['vcenter_' + fullName.replace('.', '_')] = Gauge(
             'vcenter_' + fullName.replace('.', '_'),
             'vcenter_' + fullName.replace('.', '_'),
-            ['vmware_name', 'project_id', 'vcenter_name', 'vcenter_node'])
+            ['vmware_name', 'project_id', 'vcenter_name', 'vcenter_node',
+             'instance_uuid'])
 
     # in case we have a set of metric to handle use those, otherwise use all we can get
     selected_metrics = config.get('main').get('vm_metrics')
@@ -126,6 +128,7 @@ def main():
         for host in hostssystems:
             hostname = host.name
             hostsystemsdict[host] = hostname
+        logging.debug('list of all available vcenter nodes and their internal id')
         logging.debug(hostsystemsdict)
 
         # create containerview to get a list of vmware machines
@@ -144,7 +147,7 @@ def main():
                     logging.debug('current vm processed - ' +
                           child.summary.config.name)
 
-                    logging.debug(hostsystemsdict[child.summary.runtime.host])
+                    logging.debug('==> running on vcenter node: ' + hostsystemsdict[child.summary.runtime.host])
 
                     # split the multi-line annotation into a dict per property (name, project-id, ...)
                     annotation_lines = child.summary.config.annotation.split('\n')
@@ -159,29 +162,40 @@ def main():
                     metricIDs = [vim.PerformanceManager.MetricId(counterId=i, instance="*") for i in counterIDs]
 
                     # query spec for the metric stats query, we might get the interval from PerfProviderSummary later ...
+                    logging.debug('==> vim.PerformanceManager.QuerySpec start: %s' % datetime.datetime.now())
                     spec = vim.PerformanceManager.QuerySpec(
                         maxSample=1,
                         entity=child,
                         metricId=metricIDs,
                         intervalId=20)
+                    logging.debug('==> vim.PerformanceManager.QuerySpec end: %s' % datetime.datetime.now())
 
                     # get metric stats from vcenter
+                    logging.debug('==> perfManager.QueryStats start: %s' % datetime.datetime.now())
                     result = perfManager.QueryStats(querySpec=[spec])
+                    logging.debug('==> perfManager.QueryStats end: %s' % datetime.datetime.now())
+
+                    # evaluate those outside of the values loop, as they are to
+                    # expensive to evaluate each time
+                    instance_uuid = child.summary.config.instanceUuid
+                    runtime_host = child.summary.runtime.host
 
                     # loop over the metrics
+                    logging.debug('==> gauge loop start: %s' % datetime.datetime.now())
                     for val in result[0].value:
-                        if val:
-                            # send gauges to prometheus exporter: metricname and value with
-                            # labels: vm name, project id and vcenter name
-                            gauge['vcenter_' +
-                                  counterInfo.keys()[counterInfo.values(
-                                  ).index(val.id.counterId)].replace(
-                                      '.', '_')].labels(
-                                          annotations['name'],
-                                          annotations['projectid'],
-                                          shorter_names_regex.sub('',config['main']['host']),
-                                          shorter_names_regex.sub('',hostsystemsdict[child.summary.runtime.host])
-                            ).set(val.value[0])
+                        # send gauges to prometheus exporter: metricname and value with
+                        # labels: vm name, project id and vcenter name
+                        gauge['vcenter_' +
+                              counterInfo.keys()[counterInfo.values(
+                              ).index(val.id.counterId)].replace(
+                                  '.', '_')].labels(
+                                      annotations['name'],
+                                      annotations['projectid'],
+                                      shorter_names_regex.sub('',config['main']['host']),
+                                      shorter_names_regex.sub('',hostsystemsdict[runtime_host]),
+                                      instance_uuid
+                        ).set(val.value[0])
+                    logging.debug('==> gauge loop end: %s' % datetime.datetime.now())
 
             except vmodl.fault.ManagedObjectNotFound:
                 logging.info('a machine disappeared during processing')
