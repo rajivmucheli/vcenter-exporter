@@ -33,7 +33,11 @@ def main():
     args, remaining_argv = parser.parse_known_args()
     config = YamlConfig(args.config, defaults)
 
-    logger.setLevel(logging.getLevelName(config.get('main').get('log').upper()))
+    # set default log level if not defined in config file
+    if config.get('main').get('log'):
+      logger.setLevel(logging.getLevelName(config.get('main').get('log').upper()))
+    else:
+      logger.setLevel('INFO')
     FORMAT = '[%(asctime)s] [%(levelname)s] %(message)s'
     logging.basicConfig(stream=sys.stdout, format=FORMAT)
 
@@ -68,8 +72,12 @@ def main():
     counterInfo = {}
     gauge = {}
 
-    #try to filter out openstack generated vms
+    # try to filter out openstack generated vms
     pattern = re.compile("^name:")
+
+    # compile a regex for stripping out not required parts of hostnames etc. to have shorter label names (for better grafana display)
+    shorter_names_regex = re.compile("\.cc\..*\.cloud\.sap")
+
     # create a mapping from performance stats to their counterIDs
     # counterInfo: [performance stat => counterId]
     # performance stat example: cpu.usagemhz.LATEST
@@ -90,7 +98,7 @@ def main():
         gauge['vcenter_' + fullName.replace('.', '_')] = Gauge(
             'vcenter_' + fullName.replace('.', '_'),
             'vcenter_' + fullName.replace('.', '_'),
-            ['vmware_name', 'project_id', 'vcenter_name', 'cluster_node'])
+            ['vmware_name', 'project_id', 'vcenter_name', 'vcenter_node'])
 
     # in case we have a set of metric to handle use those, otherwise use all we can get
     selected_metrics = config.get('main').get('vm_metrics')
@@ -106,12 +114,14 @@ def main():
     # infinite loop for getting the metrics
     while True:
 
+        # get all the data regarding vcenter hosts
         hostView = content.viewManager.CreateContainerView(container,
                                                         [vim.HostSystem],
                                                         recursive)
 
         hostssystems = hostView.view
 
+        # build a dict to lookup the hostname by its id later
         hostsystemsdict = {}
         for host in hostssystems:
             hostname = host.name
@@ -169,10 +179,8 @@ def main():
                                       '.', '_')].labels(
                                           annotations['name'],
                                           annotations['projectid'],
-                                          config['main']['host'].replace(
-                                              '.cloud.sap',''),
-                                          hostsystemsdict[child.summary.runtime.host].replace(
-                                              '.cloud.sap','')
+                                          shorter_names_regex.sub('',config['main']['host']),
+                                          shorter_names_regex.sub('',hostsystemsdict[child.summary.runtime.host])
                             ).set(val.value[0])
 
             except vmodl.fault.ManagedObjectNotFound:
