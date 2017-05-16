@@ -188,7 +188,7 @@ def main():
             except IndexError:
                 logging.info('a machine disappeared during processing')
 
-            time.sleep(config.get('main').get('interval'))
+        time.sleep(config.get('main').get('interval'))
 
 
 if __name__ == "__main__":
