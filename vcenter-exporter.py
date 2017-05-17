@@ -100,7 +100,7 @@ def main():
             'vcenter_' + fullName.replace('.', '_'),
             'vcenter_' + fullName.replace('.', '_'),
             ['vmware_name', 'project_id', 'vcenter_name', 'vcenter_node',
-             'instance_uuid'])
+             'instance_uuid', 'metric_detail'])
 
     # in case we have a set of metric to handle use those, otherwise use all we can get
     selected_metrics = config.get('main').get('vm_metrics')
@@ -184,8 +184,15 @@ def main():
                     logging.debug('==> gauge loop start: %s' % datetime.datetime.now())
                     for val in result[0].value:
                         # send gauges to prometheus exporter: metricname and value with
-                        # labels: vm name, project id and vcenter name
+                        # labels: vm name, project id, vcenter name, vcneter
+                        # node and instance uuid - we update the gauge only if
+                        # the value is not -1 which means the vcenter has no
+                        # value
                         if val.value[0] != -1:
+                            if val.id.instance == '':
+                                metric_detail = 'none'
+                            else:
+                                metric_detail = val.id.instance
                             gauge['vcenter_' +
                                   counterInfo.keys()[counterInfo.values(
                                   ).index(val.id.counterId)].replace(
@@ -194,7 +201,8 @@ def main():
                                           annotations['projectid'],
                                           shorter_names_regex.sub('',config['main']['host']),
                                           shorter_names_regex.sub('',hostsystemsdict[runtime_host]),
-                                          instance_uuid
+                                          instance_uuid,
+                                          metric_detail
                             ).set(val.value[0])
                     logging.debug('==> gauge loop end: %s' % datetime.datetime.now())
 
