@@ -92,7 +92,7 @@ def main():
     # loop over all counterids and build their full name and a dict relating it to the ids
     for c in counterids:
         fullName = c.groupInfo.key + "." + c.nameInfo.key + "." + c.rollupType
-        logging.debug(': ' + fullName + ': ' + str(c.key))
+        logging.debug(fullName + ': ' + str(c.key))
         counterInfo[fullName] = c.key
 
         # define a dict of gauges for the counter ids
@@ -185,16 +185,17 @@ def main():
                     for val in result[0].value:
                         # send gauges to prometheus exporter: metricname and value with
                         # labels: vm name, project id and vcenter name
-                        gauge['vcenter_' +
-                              counterInfo.keys()[counterInfo.values(
-                              ).index(val.id.counterId)].replace(
-                                  '.', '_')].labels(
-                                      annotations['name'],
-                                      annotations['projectid'],
-                                      shorter_names_regex.sub('',config['main']['host']),
-                                      shorter_names_regex.sub('',hostsystemsdict[runtime_host]),
-                                      instance_uuid
-                        ).set(val.value[0])
+                        if val.value[0] != -1:
+                            gauge['vcenter_' +
+                                  counterInfo.keys()[counterInfo.values(
+                                  ).index(val.id.counterId)].replace(
+                                      '.', '_')].labels(
+                                          annotations['name'],
+                                          annotations['projectid'],
+                                          shorter_names_regex.sub('',config['main']['host']),
+                                          shorter_names_regex.sub('',hostsystemsdict[runtime_host]),
+                                          instance_uuid
+                            ).set(val.value[0])
                     logging.debug('==> gauge loop end: %s' % datetime.datetime.now())
 
             except vmodl.fault.ManagedObjectNotFound:
