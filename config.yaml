@@ -6,6 +6,7 @@ main:
     ignore_ssl: True
     interval: 60
     log: INFO
+    shorter_names_regex: '\.some\.domain\.name'
     vm_metrics:
     - 'cpu.usage.average'
     - 'cpu.usagemhz.average'

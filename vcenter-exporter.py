@@ -65,6 +65,10 @@ def main():
     content = si.RetrieveContent()
     perfManager = content.perfManager
 
+    # get the datacenter info
+    datacenter = si.content.rootFolder.childEntity[0]
+    logging.debug('datacenter name: ' + datacenter.name)
+
     # create a list of vim.VirtualMachine objects so that we can query them for statistics
     container = content.rootFolder
     viewType = [vim.VirtualMachine]
@@ -77,7 +81,12 @@ def main():
     pattern = re.compile("^name:")
 
     # compile a regex for stripping out not required parts of hostnames etc. to have shorter label names (for better grafana display)
-    shorter_names_regex = re.compile("\.cc\..*\.cloud\.sap")
+    if config.get('main').get('shorter_names_regex'):
+        shorter_names_regex = re.compile(config.get('main').get('shorter_names_regex'))
+    else:
+        shorter_names_regex = re.compile('')
+    logging.debug("name shortening regex: " +
+                  str(config.get('main').get('shorter_names_regex')))
 
     # create a mapping from performance stats to their counterIDs
     # counterInfo: [performance stat => counterId]
@@ -190,7 +199,7 @@ def main():
                         # value
                         if val.value[0] != -1:
                             if val.id.instance == '':
-                                metric_detail = 'none'
+                                metric_detail = 'total'
                             else:
                                 metric_detail = val.id.instance
                             gauge['vcenter_' +
@@ -199,7 +208,7 @@ def main():
                                       '.', '_')].labels(
                                           annotations['name'],
                                           annotations['projectid'],
-                                          shorter_names_regex.sub('',config['main']['host']),
+                                          datacenter.name,
                                           shorter_names_regex.sub('',hostsystemsdict[runtime_host]),
                                           instance_uuid,
                                           metric_detail
