@@ -95,7 +95,7 @@ def main():
     counterids = perfManager.QueryPerfCounterByLevel(level=4)
 
     # start up the http server to expose the prometheus metrics
-    start_http_server(8000)
+    start_http_server(config.get('main').get('listen_port'))
 
     logging.debug('list of all available metrics and their counterids')
     # loop over all counterids and build their full name and a dict relating it to the ids
