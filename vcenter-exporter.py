@@ -161,10 +161,12 @@ def main():
                     # split the multi-line annotation into a dict per property (name, project-id, ...)
                     annotation_lines = child.summary.config.annotation.split('\n')
 
-                    # the filter is for filtering out empty lines
+                    # rename flavor: to flavor_, so that it does not break the split on : below
+                    annotation_lines = [w.replace('flavor:', 'flavor_') for w in annotation_lines]
 
+                    # the filter is for filtering out empty lines
                     annotations = dict(
-                        s.rsplit(':', 1)
+                        s.split(':', 1)
                          for s in filter(None, annotation_lines))
 
                     # get a list of metricids for this vm in preparation for the stats query
